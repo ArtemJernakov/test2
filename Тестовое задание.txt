@@ -1,0 +1,189 @@
+-------------------	1 задание	-------------------
+use testtest
+go
+set ansi_nulls on
+go
+set quoted_identifier on
+go
+create table [19.03.2021](
+	[NumCode] [int] not null,
+	[CharCode] [varchar](50) not null,
+	[Nominal] [int] not null,
+	[Name] [varchar](100) not null,
+	[Value] [float] null
+)
+
+
+-------------------	3 задание	-------------------
+USE [testtest]
+GO
+SELECT [Value]		<-- Возвращает курс
+FROM 
+[dbo].[19.03.2021]	<-- Принимаемый параметр (Дата)
+WHERE 
+CharCode = 'AUD'	<-- Принимаемый параметр (Валюта)
+
+
+-------------------	2 задание	-------------------
+
+
+Написал код на c#.
+
+
+using System;
+using System.Xml;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Data.SqlClient;
+
+class Program
+{
+	public class Valute
+	{
+		public int NumCode { get; set; }
+		public string CharCode { get; set; }
+		public int Nominal { get; set; }
+		public string Name { get; set; }
+		public double Value { get; set; }
+	}
+
+	static Valute valute = new Valute();
+	static List<Valute> ListValute = new List<Valute>();
+	const string URLValute = "http://www.cbr.ru/scripts/XML_daily.asp?date_req=";
+
+	static void Main(string[] args)
+	{            
+		ParseValute();            
+	}
+
+---------- Для ежедневного получения валют ParseValute() можно поставить на таймер и данные будут обновляться ежедневно ----------
+	private static void ParseValute()
+	{
+		string URLString = URLValute + DateTime.Now.ToString("dd.MM.yyyy");
+
+		XmlTextReader reader = new XmlTextReader(URLString);
+
+		var element = string.Empty;
+		var Text = string.Empty;
+
+		while (reader.Read())
+		{
+			switch (reader.NodeType)
+			{
+				case XmlNodeType.Element:
+					element = reader.Name;
+
+					if (element == "Valute")
+						valute = new Valute();
+					break;
+
+				case XmlNodeType.Text:
+					Text = reader.Value;
+					break;
+
+				case XmlNodeType.EndElement:
+					if (element == "Valute")
+					{
+						ListValute.Add(valute);
+						break;
+					}
+					CreateValute(element, Text);
+					break;
+			}
+		}
+	}
+
+	private static void CreateValute(string Element, string text)
+	{
+		switch (Element)
+		{
+			case "NumCode":
+				valute.NumCode = Convert.ToInt32(text);
+				break;
+			case "CharCode":
+				valute.CharCode = text;
+				break;
+			case "Nominal":
+				valute.Nominal = Convert.ToInt32(text);
+				break;
+			case "Name":
+				valute.Name = text;
+				break;
+			case "Value":
+				valute.Value = Convert.ToDouble(text);
+				break;
+		}
+	}
+}
+
+
+
+-------------------	4 задание	-------------------
+
+
+------- Получение курса из внутренних данных -------
+
+private static double getValue(string charCode)
+{
+	var result = ListValute.Where(valute => valute.CharCode == charCode).FirstOrDefault();
+
+	return result is null ? 0 : result.Value;
+}
+
+
+------- Получение курса из базы данных -------
+
+private static double getValue(string charCode, DateTime date)
+{
+	StringBuilder builder = new StringBuilder();
+
+	builder.Append("USE[testtest]");
+	builder.Append("GO SELECT[Value] FROM");
+	builder.Append($"[{date.ToString("dd.MM.yyyy")}]");
+	builder.Append($"WHERE CharCode = '{charCode}'");
+
+	//Запрос к бд
+	string connectionString = @"Data Source=.\SQLEXPRESS;Initial Catalog=usersdb;Integrated Security=True";
+	using (SqlConnection connection = new SqlConnection(connectionString))
+	{
+		connection.Open();
+		SqlCommand command = new SqlCommand();
+		command.CommandText = builder.ToString();
+		command.Connection = connection;
+		SqlDataReader reader = command.ExecuteReader();
+
+		return (double)reader.GetValue(0);
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
